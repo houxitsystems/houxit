@@ -1,0 +1,36 @@
+{
+  "name": "houxit",
+  "version": "0.1.11",
+  "description": "The blueprint for modern web apps.",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/houxitsystems/houxit.git"
+  },
+  "keywords": [
+    "houxit",
+    "javascript-framework",
+    "reactivity",
+    "widgets"
+  ],
+  "author": "Houxit Systems",
+  "license": "MIT"
+}
