@@ -135,9 +135,9 @@ function Greeting({ params }) {
 **2. An options object** — a structured object with named options.
 
 ```javascript
-const Counter = {
-  model: {
-    count: 0
+export default {
+  model(){
+    this.count= 0
   },
   handlers: {
     increment() {
@@ -175,16 +175,16 @@ Drop Houxit into any HTML page without a build step:
 
 ```html
 <!-- Development build -->
-<script src="https://cdn.jsdelivr.net/npm/houxit/dist/houxit.global.javascript"></script>
+<script src="https://cdn.jsdelivr.net/npm/houxit/dist/houxit.global.js"></script>
 
 <!-- Production build (minified) -->
-<script src="https://cdn.jsdelivr.net/npm/houxit/dist/houxit.global.min.javascript"></script>
+<script src="https://cdn.jsdelivr.net/npm/houxit/dist/houxit.global.min.js"></script>
 ```
 
 With the CDN build, Houxit is available as the global `Houxit`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/houxit/dist/houxit.global.javascript"></script>
+<script src="https://cdn.jsdelivr.net/npm/houxit/dist/houxit.global.js"></script>
 <body>
   <div id="app"></div>
 
@@ -192,11 +192,11 @@ With the CDN build, Houxit is available as the global `Houxit`:
   const { initBuild, useModel } = Houxit
 
   initBuild({
-    model: {
-      message: 'Hello from Houxit!'
+    model(){
+      this.message= 'Hello from Houxit!'
     },
     template: `<h1>{{ message }}</h1>`
-  }).mount('#app')
+  }).render('#app')
 </script>
 </body>
 ```
@@ -207,7 +207,7 @@ You can also use the ES module build with `unplugin` or directly via import maps
 <script type="importmap">
   {
     "imports": {
-      "houxit": "https://cdn.jsdelivr.net/npm/houxit/dist/houxit.esm.javascript"
+      "houxit": "https://cdn.jsdelivr.net/npm/houxit/dist/houxit.esm.js"
     }
   }
 </script>
@@ -552,7 +552,7 @@ const [getCount, setCount] = createAgent(0)
 
 getCount()       // read
 setCount(5)      // write
-setCount(( value }) => n + 1)  // update from previous value
+setCount(( value }) => value + 1)  // update from previous value
 ```
 
 Signals work well with `Provider`  for cross-widget state sharing without prop-drilling.
@@ -681,6 +681,7 @@ Conditionally render an element. The element and its children are fully created 
 ```html
 <p $$if="isLoggedIn">Welcome back!</p>
 <p $$else-if="isPending">Loading...</p>
+<p $$else-if="isFailed">Loading failed...</p>
 <p $$else>Please log in.</p>
 ```
 
@@ -690,7 +691,7 @@ Render a list of elements from an array. Use the `of` syntax with a key for effi
 
 ```html
 <ul>
-  <li $$for="item of items" :key="item.id">
+  <li $$for="item of items" *key="item.id">
     {{ item.name }}
   </li>
 </ul>
@@ -699,7 +700,7 @@ Render a list of elements from an array. Use the `of` syntax with a key for effi
 With index:
 
 ```html
-<li $$for="(item, index) of items" :key="index">{{ index }}: {{ item }}</li>
+<li $$for="(item, key, index) of items" *key="index">{{ index }}: {{ item }}</li>
 ```
 
 #### `$$bind`
@@ -771,14 +772,14 @@ Scoped slots pass data from child to parent:
 <slot name=default context="{ item }" />
 
 <!-- Parent consumes it -->
-<MyList #default="{ item }">
-  <span>{{ item.name }}</span>
+<MyList >
+  <span #default="{ item }">{{ item.name }}</span>
 </MyList>
 ```
 
 #### `$$animate` & `$$transite`
 
-`$$animate` and `$$transite` handle enter/leave animations and CSS transitions declaratively.
+`$$animate` and `$$transite` handle enter/leave transitions and animations declaratively.
 
 `$$transite` applies CSS transitions when an element enters or leaves the DOM (often paired with `$$if` or `$$for`):
 
@@ -793,8 +794,10 @@ export default {
     fade(node, params){
       
       return {
-        enter: { opacity: [0, 1], duration: 300 },
-        leave: { opacity: [1, 0], duration: 200 }
+        keyframes:[
+          { opacity: [0, 1], duration: 300 },
+          { opacity: [1, 0], duration: 200 }
+        ]
       }
     }
   }
@@ -828,11 +831,12 @@ export default {
 Custom animation functions give you complete programmatic control:
 
 ```javascript
+import { easings } from 'houxit';
 export default {
   animations: {
     bounce(el, { to, from }, params) {
         // Animate el however you like, call done() when finished
-      return { duration: 400, easing: 'ease-out' }
+      return { duration: 400, easing: easings.easeInOut }
     }
   }
 }
@@ -873,19 +877,20 @@ function whizzz(node, params){
 ### Template Blocks
 
 Blocks are multi-line template constructs that provide control flow and utility beyond what single-attribute directives can express. Blocks use a `{{@keyword}}` / `{{/keyword}}` delimiter syntax.
+However some blocks are void blocks and are automatically closed after the opening block tag. children or closing block tags are ignored.
 
 #### `@if` Block
 
 ```html
 {{@if count > 10}}
   <p>Count is large!</p>
-{{@else:if count > 5}}
+{{@else:if count > 5}}<!-- void block -->
   <p>Count is medium.</p>
-{{@else}}
+{{@else}}<!-- void block -->
   <p>Count is small.</p>
 {{/if}}
 ```
-
+`@else:if` and `@else` is only usable insinde the `@if` / `/if` block.
 #### `@for` Block
 
 ```html
@@ -900,14 +905,15 @@ Blocks are multi-line template constructs that provide control flow and utility 
 With index and key:
 
 ```html
-{{@for (item, i) of items key=item.id}}
-  <li>{{ i + 1 }}. {{ item.name }}</li>
+{{@for (item, i) of items }}
+  <li *key=item.id>{{ i + 1 }}. {{ item.name }}</li>
 {{/for}}
 ```
 
 #### `@const`
 
 Declare a local template variable for use within the template scope:
+> Note... @const is a void tag...
 
 ```html
 {{@const total = items.reduce((s, i) => s + i.price, 0)}}
@@ -924,7 +930,7 @@ Declare a local template variable for use within the template scope:
 Render a raw HTML string. Only use with trusted content — this bypasses Houxit's automatic HTML escaping.
 
 ```html
-{{@html article.bodyHtml}}
+{{@html article.bodyHtml}}<!-- void block -->
 ```
 
 #### `@await` Block
@@ -932,7 +938,7 @@ Render a raw HTML string. Only use with trusted content — this bypasses Houxit
 Render async content inline. Best used inside a `Suspense` widget for graceful loading states.
 
 ```html
-{{@await fetchUser(userId)}}
+{{@await fetchUser(userId)}}<!-- void block -->
 ```
 
 The `Suspense` widget handles the pending state globally for a subtree:
@@ -950,10 +956,13 @@ The `Suspense` widget handles the pending state globally for a subtree:
 `@class` opens a class-based scoping block. `@new` instantiates within that block. These are advanced blocks for scenarios where class-based constructs serve the rendering logic.
 
 ```html
-{{@class Formatter}}
+{{@class Formatter=()}}
   {{@const fmt = @new Formatter(locale)}}
   <p>{{ fmt.format(value) }}</p>
 {{/class}}
+
+{{@new Formatter()}}<!-- void block -->
+
 ```
 
 ---
@@ -1028,9 +1037,9 @@ Houxit's reactivity system is based on automatic dependency tracking. When a rea
 const user = stream({ name: 'Chukwuemeka', age: 30 })
 
 effectHook(() => {
-  // This effect only re-runs when user.value.name changes
-  // Not when user.value.age changes
-  console.log(user.value.name)
+  // This effect only re-runs when user.name changes
+  // Not when user.age changes
+  console.log(user.name)
 })
 ```
 
@@ -1052,7 +1061,7 @@ Computed values are lazy (only evaluated when read) and cached (the function onl
 
 ```javascript
 const list = stream([1, 2, 3])
-list.value.push(4)  // reactive update triggered
+list.push(4)  // reactive update triggered
 ```
 
 ---
@@ -1070,7 +1079,7 @@ list.value.push(4)  // reactive update triggered
 In the `build` function or Adapter API context, `params` is available as part of the first argument object:
 
 ```javascript
-build({ params, signals, events, attrs }) {
+build(params, { slots, signals, events, attrs }) {
   // ...
 }
 ```
@@ -1082,8 +1091,8 @@ In `<script build>`, you can get params from the return value of `defineParams`
 
 ```javascript
 // Options API
-{
-  signals: ['update:count', 'save'],
+export default{
+  signals: ['updateCount', 'save'],
   handlers: {
     save() {
       this.$signals.save(this.formData)//pass arguments
@@ -1156,14 +1165,14 @@ Slots let parent widgets inject content into a child widget's template.
 <Modal>
   <h2 #header>Confirm</h2>
   <p>Are you sure?</p>
-  <button #footer @click="confirm">Yes</button>
+  <button #footer @click="confirm()">Yes</button>
 </Modal>
 ```
 
-**Scoped slots** pass data up from child to parent: but to expose data to the who consumer scope, use the context option method. it return value is exposed to the consumer. `useContext` for Adapter API;
+**Scoped slots** pass data up from child to parent: but to expose data to the whole consumer scope, use the context option method. it's return value is exposed to the consumer. Use the `useContext()` method for Adapter API;
 
 ```javascript
-{
+export default{
   context(){
     return {
       item:{
@@ -1266,7 +1275,7 @@ const theme = inject('theme')
 
 ### Motion
 
-`Motion` wraps one or more elements and applies enter/leave transitions and animations. It's the declarative animation wrapper — an alternative to placing `$$transite` and `$$animate` on individual elements when you want to manage a group's transitions in one place.
+`Motion` wraps one or more elements and applies enter/leave transitions and animations. It's the declarative animation wrapper — an alternative to placing `$$transite` and `$$animate` on individual elements when you want to manage a group's transitions in one place including texts which are got translated to `<span>` element by the compiler.
 
 ```html
 <Motion name="slide" mode="out-in">
@@ -1282,11 +1291,15 @@ const theme = inject('theme')
 Define the transition in your widget options or globally:
 
 ```javascript
-{
+export default{
   transitions: {
-    slide: {
-      enter: { transform: ['translateX(100%)', 'translateX(0)'], duration: 300 },
-      leave: { transform: ['translateX(0)', 'translateX(-100%)'], duration: 300 }
+    slide(){
+      return {
+        keyframes:[
+          { transform: ['translateX(100%)', 'translateX(0)'], duration: 300 },
+          {  transform: ['translateX(0)', 'translateX(-100%)'], duration: 300 }
+        ]
+      }
     }
   }
 }
@@ -1324,7 +1337,7 @@ h(type, props, ...children)
 - **`children`**: Child nodes — strings, numbers, or more `h()` calls.
 
 ```javascript
-{
+export default{
   render() {
     return h('ul', { class: 'list' },
       ...this.items.map(item =>
@@ -1344,9 +1357,14 @@ import { h, Suspense, Fragment } from 'houxit'
 
 render() {
   return h(Fragment, null,
-    h('h1', null, 'Title'),
-    h(Suspense, { fallback: h('p', null, 'Loading...') },
-      h(AsyncWidget, { id: this.id })
+    h('h1', 'Title'),
+    h(Suspense, {  },
+      [
+        enSlot({
+          fallback:()=> h('p', null, 'Loading...')
+        }),
+        h(AsyncWidget, { id: this.id })
+      ]
     )
   )
 }
@@ -1361,24 +1379,19 @@ Inside a `.houxit` Widget Unit File, you can use a dedicated `<script render>` b
 ```html
 <!-- UserCard.houxit -->
 
-<script>
-export default {
-  params: {
-    user: Object
-  }
-}
+<script build>
+import { useParams, h } from 'houxit
+useParams({
+  user:Object
+})
 </script>
 
 <script render>
-import { h } from 'houxit'
-
-export default function render({ $params }) {
-  return h('div', { class: 'card' },
+ h('div', { class: 'card' },
     h('img', { src: $params.user.avatar }),
     h('h2', null, $params.user.name),
     h('p', null, $params.user.bio)
   )
-}
 </script>
 ```
 
@@ -1429,17 +1442,17 @@ export default {
 A **function widget** is treated as a `build` function directly:
 
 ```javascript
-function Counter({ $params }) {
-  const count = stream($params.initial ?? 0)
+function Counter(params) {
+  const count = token(params.initial.data ?? 0)
 
   return () => h('div', null,
-    h('p', null, `${count.value}`),
-    h('button', { 'on:click': () => count.value++ }, '+')
+    h('p', null, `${count.data}`),
+    h('button', { 'on:click': () => count.data++ }, '+')
   )
 }
 ```
 
-When Houxit detects a function used as a widget, it calls it once (during initialization) and uses the returned render function for all subsequent renders.
+When Houxit detects a function used as a widget, it calls it once (during initialization) and uses the returned render function for all subsequent rerenders.
 
 ---
 
@@ -1459,7 +1472,6 @@ export default defineWidget({
   params: {
     user: Object as () => User
   },
-
   build({ params }: { params: { user: User } }) {
     const editedName = token(params.user.data.name)
 
